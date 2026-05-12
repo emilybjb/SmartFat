@@ -88,13 +88,18 @@ h1, h2, h3, .heading {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
   padding: 10px 20px;
   color: var(--muted);
+  background: transparent;
+  border: 0;
   cursor: pointer;
   transition: all 0.15s;
   border-left: 3px solid transparent;
+  font-family: 'Barlow', sans-serif;
   font-size: 13px;
   font-weight: 500;
+  text-align: left;
 }
 
 .nav-item:hover { color: var(--text); background: var(--bg3); }
@@ -174,6 +179,12 @@ h1, h2, h3, .heading {
 .topbar-spacer { flex: 1; }
 
 .content { padding: 28px; }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
 
 /* ---- Cards ---- */
 .card {
@@ -337,6 +348,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
 }
+
+.form-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.form-inline .form-select { min-width: 260px; }
 
 .form-group { display: flex; flex-direction: column; gap: 6px; }
 
@@ -511,7 +530,69 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .toast.success { border-left: 3px solid var(--green); }
 .toast.error   { border-left: 3px solid var(--red); }
 
+.empty-state,
+.loading {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  padding: 28px;
+  text-align: center;
+}
+
+.inline-metrics,
+.split-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.inline-metrics span {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.split-actions { margin-bottom: 16px; }
+
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
   to   { transform: translateX(0);    opacity: 1; }
+}
+
+@media (max-width: 860px) {
+  :root { --sidebar-w: 100%; }
+
+  .app { display: block; }
+
+  .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+  }
+
+  .sidebar-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 8px;
+  }
+
+  .nav-section-label { grid-column: 1 / -1; }
+
+  .main { margin-left: 0; }
+
+  .topbar {
+    padding: 0 16px;
+  }
+
+  .content { padding: 16px; }
+
+  .grid-2 { grid-template-columns: 1fr; }
+
+  .form-inline {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .form-inline .form-select { min-width: 0; }
 }

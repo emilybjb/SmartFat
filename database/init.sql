@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS planos (
     idPlano  INT AUTO_INCREMENT PRIMARY KEY,
     nome     VARCHAR(100) NOT NULL,
     valor    DECIMAL(6,2) NOT NULL,
-    duracao  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    duracao  INT DEFAULT 30
 );
 
 -- Alunos cadastrados
@@ -109,14 +109,14 @@ CREATE TABLE IF NOT EXISTS mensalidades (
 
 INSERT INTO usuarios (nome, email, senha, perfil) VALUES
 -- Senha: admin123 (bcrypt hash)
-('Administrador', 'admin@smartfat.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMqJqhHqTL5mgZZfbJjqIHm2A2', 'admin');
+('Administrador', 'admin@smartfat.com', '$2b$12$FAd/aQKomqavdY2mcmLJfeihXtgPb64Vbh09vfCQLE8lq5JvvnIUm', 'admin');
 
-INSERT INTO planos (nome, valor) VALUES
-('Mensal Básico', 89.90),
-('Mensal Plus', 129.90),
-('Trimestral', 299.90),
-('Semestral', 529.90),
-('Anual', 899.90);
+INSERT INTO planos (nome, valor, duracao) VALUES
+('Mensal Básico', 89.90, 30),
+('Mensal Plus', 129.90, 30),
+('Trimestral', 299.90, 90),
+('Semestral', 529.90, 180),
+('Anual', 899.90, 365);
 
 INSERT INTO alunos (nome, CPF, telefone, status, Plano_idPlano) VALUES
 ('João Silva',    '111.111.111-11', '27999990001', 'Ativo', 1),

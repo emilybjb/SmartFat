@@ -22,5 +22,8 @@ def login():
     if not usuario or not bcrypt.checkpw(senha.encode(), usuario['senha'].encode()):
         return jsonify({'erro': 'Credenciais inválidas'}), 401
 
-    token = create_access_token(identity={'id': usuario['id'], 'perfil': usuario['perfil']})
+    token = create_access_token(
+        identity=str(usuario['id']),
+        additional_claims={'perfil': usuario['perfil']}
+    )
     return jsonify({'token': token, 'perfil': usuario['perfil'], 'nome': usuario['nome']})

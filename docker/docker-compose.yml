@@ -30,7 +30,7 @@ services:
       DB_PASS: smartfat_pass
       SECRET_KEY: smartfat_secret_2026
     ports:
-      - "5000:5000"
+      - "5001:5000"
     depends_on:
       - db
     networks:

@@ -34,6 +34,9 @@ Com Docker:
 docker compose -f docker/docker-compose.yml up --build
 ```
 
+Frontend: http://localhost
+Backend direto: http://localhost:5001
+
 Localmente:
 
 ```bash

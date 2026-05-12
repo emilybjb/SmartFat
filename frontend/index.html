@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SmartFat</title>
+    <link rel="stylesheet" href="css/main.css">
+  </head>
+  <body>
+    <section id="login-page">
+      <form class="login-card" id="login-form">
+        <div class="login-logo">SMARTFAT</div>
+        <div class="login-sub">Gestao de academia</div>
+
+        <label class="form-group">
+          <span class="form-label">E-mail</span>
+          <input class="form-input" name="email" type="email" value="admin@smartfat.com" autocomplete="email" required>
+        </label>
+
+        <label class="form-group">
+          <span class="form-label">Senha</span>
+          <input class="form-input" name="senha" type="password" value="admin123" autocomplete="current-password" required>
+        </label>
+
+        <button class="btn btn-primary" type="submit">Entrar</button>
+        <p class="login-error" id="login-error"></p>
+      </form>
+    </section>
+
+    <section class="app hidden" id="app">
+      <aside class="sidebar">
+        <div class="sidebar-logo">
+          <div class="logo-title">SMARTFAT</div>
+          <div class="logo-sub">Gym Control</div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebar-nav">
+          <div class="nav-section-label">Operacao</div>
+          <button class="nav-item active" data-view="dashboard" type="button"><span class="icon">▣</span>Dashboard</button>
+          <button class="nav-item" data-view="alunos" type="button"><span class="icon">◉</span>Alunos</button>
+          <button class="nav-item" data-view="acesso" type="button"><span class="icon">↳</span>Acesso</button>
+          <button class="nav-item" data-view="treinos" type="button"><span class="icon">◆</span>Treinos</button>
+
+          <div class="nav-section-label">Gestao</div>
+          <button class="nav-item" data-view="planos" type="button"><span class="icon">▤</span>Planos</button>
+          <button class="nav-item" data-view="mensalidades" type="button"><span class="icon">◍</span>Mensalidades</button>
+          <button class="nav-item" data-view="financeiro" type="button"><span class="icon">▥</span>Financeiro</button>
+        </nav>
+
+        <div class="sidebar-user">
+          <div class="user-avatar" id="user-avatar">SF</div>
+          <div>
+            <div class="user-name" id="user-name">SmartFat</div>
+            <div class="user-role" id="user-role">admin</div>
+          </div>
+          <button class="btn-logout" id="logout-button" type="button" title="Sair">×</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <h1 class="page-title" id="page-title">Dashboard</h1>
+          <div class="topbar-spacer"></div>
+          <button class="btn btn-ghost" id="refresh-button" type="button">Atualizar</button>
+        </header>
+        <section class="content" id="view"></section>
+      </main>
+    </section>
+
+    <div class="toast-container" id="toast-container"></div>
+    <div id="modal-root"></div>
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
