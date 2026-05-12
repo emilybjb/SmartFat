@@ -1,0 +1,60 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: smartfat_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: smartfat_root
+      MYSQL_DATABASE: smartfat
+      MYSQL_USER: smartfat_user
+      MYSQL_PASSWORD: smartfat_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - smartfat_net
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: smartfat_backend
+    restart: always
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: smartfat
+      DB_USER: smartfat_user
+      DB_PASS: smartfat_pass
+      SECRET_KEY: smartfat_secret_2026
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    networks:
+      - smartfat_net
+    volumes:
+      - ../backend:/app/backend
+
+  frontend:
+    image: nginx:alpine
+    container_name: smartfat_frontend
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ../frontend:/usr/share/nginx/html
+      - ../docker/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+    networks:
+      - smartfat_net
+
+networks:
+  smartfat_net:
+    driver: bridge
+
+volumes:
+  db_data:
