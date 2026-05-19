@@ -1,11 +1,11 @@
 from flask import Blueprint, jsonify
-from flask_jwt_extended import jwt_required
 from ..utils.db import get_connection
+from ..utils.authz import roles_required
 
 financeiro_bp = Blueprint('financeiro', __name__)
 
 @financeiro_bp.route('/resumo', methods=['GET'])
-@jwt_required()
+@roles_required('admin')
 def resumo():
     conn = get_connection()
     try:

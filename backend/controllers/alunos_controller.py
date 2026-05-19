@@ -1,5 +1,10 @@
 from ..utils.db import get_connection
 
+
+def only_digits(value):
+    return ''.join(char for char in str(value or '') if char.isdigit())
+
+
 def listar_alunos():
     conn = get_connection()
     try:
@@ -24,26 +29,37 @@ def buscar_aluno(id):
         conn.close()
 
 def criar_aluno(data):
+    cpf = only_digits(data.get('CPF'))
+    telefone = only_digits(data.get('telefone'))
+    if len(cpf) != 11:
+        raise ValueError('CPF deve conter exatamente 11 digitos.')
+    if telefone and len(telefone) > 11:
+        raise ValueError('Telefone deve conter no maximo 11 digitos.')
+
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO alunos (nome, CPF, telefone, status, Plano_idPlano)
                 VALUES (%s, %s, %s, %s, %s)
-            """, (data['nome'], data['CPF'], data.get('telefone'), 'Ativo', data.get('Plano_idPlano')))
+            """, (data['nome'], cpf, telefone or None, 'Ativo', data.get('Plano_idPlano')))
             conn.commit()
             return {'id': cur.lastrowid, **data}
     finally:
         conn.close()
 
 def atualizar_aluno(id, data):
+    telefone = only_digits(data.get('telefone'))
+    if telefone and len(telefone) > 11:
+        raise ValueError('Telefone deve conter no maximo 11 digitos.')
+
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute("""
                 UPDATE alunos SET nome=%s, telefone=%s, status=%s, Plano_idPlano=%s
                 WHERE idAluno=%s
-            """, (data['nome'], data.get('telefone'), data.get('status', 'Ativo'), data.get('Plano_idPlano'), id))
+            """, (data['nome'], telefone or None, data.get('status', 'Ativo'), data.get('Plano_idPlano'), id))
             conn.commit()
             return {'id': id, **data}
     finally:

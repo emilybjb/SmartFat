@@ -19,7 +19,11 @@ export function dateTime(value) {
 
 export function statusBadge(status) {
   const normalized = String(status || '').toLowerCase();
-  const color = normalized === 'ativo' || normalized === 'pago' ? 'green' : normalized === 'pendente' ? 'orange' : 'red';
+  const color = ['ativo', 'pago', 'liberado'].includes(normalized)
+    ? 'green'
+    : normalized === 'pendente'
+      ? 'orange'
+      : 'red';
   return `<span class="badge badge-${color}">${status || '-'}</span>`;
 }
 
@@ -44,9 +48,11 @@ export function titleFor(view) {
     alunos: 'Alunos',
     acesso: 'Controle de acesso',
     treinos: 'Treinos e avaliacoes',
+    cadastro: 'Cadastro',
     planos: 'Planos',
     mensalidades: 'Mensalidades',
-    financeiro: 'Financeiro'
+    financeiro: 'Financeiro',
+    relatorios: 'Relatorios'
   };
   return titles[view] || 'SmartFat';
 }

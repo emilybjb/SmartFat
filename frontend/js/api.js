@@ -34,6 +34,7 @@ async function request(path, options = {}) {
 
 export const api = {
   login: (payload) => request('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
+  cadastrarUsuario: (payload) => request('/auth/cadastro', { method: 'POST', body: JSON.stringify(payload) }),
   dashboard: () => request('/relatorios/dashboard'),
   financeiro: () => request('/financeiro/resumo'),
   alunos: () => request('/alunos/'),
@@ -48,9 +49,12 @@ export const api = {
   criarMensalidade: (payload) => request('/mensalidades/', { method: 'POST', body: JSON.stringify(payload) }),
   pagarMensalidade: (id) => request(`/mensalidades/${id}/pagar`, { method: 'PUT' }),
   acessos: () => request('/acesso/'),
+  acessoStatus: () => request('/acesso/status'),
   registrarEntrada: (aluno_id) => request('/acesso/entrada', { method: 'POST', body: JSON.stringify({ aluno_id }) }),
   treinos: () => request('/treinos/'),
   criarTreino: (payload) => request('/treinos/', { method: 'POST', body: JSON.stringify(payload) }),
   avaliacoes: () => request('/treinos/avaliacoes'),
-  criarAvaliacao: (payload) => request('/treinos/avaliacoes', { method: 'POST', body: JSON.stringify(payload) })
+  criarAvaliacao: (payload) => request('/treinos/avaliacoes', { method: 'POST', body: JSON.stringify(payload) }),
+  relatorioFinanceiro: () => request('/relatorios/financeiro'),
+  relatorioAcesso: () => request('/relatorios/acesso')
 };

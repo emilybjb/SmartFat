@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
+from ..utils.authz import roles_required
 from ..utils.db import get_connection
 
 planos_bp = Blueprint('planos', __name__)
@@ -16,7 +17,7 @@ def get_all():
         conn.close()
 
 @planos_bp.route('/', methods=['POST'])
-@jwt_required()
+@roles_required('admin')
 def post():
     data = request.get_json()
     conn = get_connection()
@@ -32,7 +33,7 @@ def post():
         conn.close()
 
 @planos_bp.route('/<int:id>', methods=['PUT'])
-@jwt_required()
+@roles_required('admin')
 def put(id):
     data = request.get_json()
     conn = get_connection()
@@ -48,7 +49,7 @@ def put(id):
         conn.close()
 
 @planos_bp.route('/<int:id>', methods=['DELETE'])
-@jwt_required()
+@roles_required('admin')
 def delete(id):
     conn = get_connection()
     try:

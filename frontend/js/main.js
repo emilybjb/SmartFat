@@ -7,11 +7,21 @@ const view = qs('#view');
 const views = {
   dashboard: renderDashboard,
   alunos: renderAlunos,
+  cadastro: renderCadastro,
   acesso: renderAcesso,
   treinos: renderTreinos,
   planos: renderPlanos,
   mensalidades: renderMensalidades,
-  financeiro: renderFinanceiro
+  financeiro: renderFinanceiro,
+  relatorios: renderRelatorios
+};
+
+const roleViews = {
+  admin: ['dashboard', 'alunos', 'cadastro', 'acesso', 'treinos', 'planos', 'mensalidades', 'financeiro', 'relatorios'],
+  treinador: ['dashboard', 'alunos', 'treinos'],
+  professor: ['dashboard', 'alunos', 'treinos'],
+  aluno: ['dashboard', 'mensalidades', 'treinos', 'acesso'],
+  recepcionista: ['acesso']
 };
 
 init();
@@ -21,12 +31,27 @@ function init() {
   qs('#logout-button').addEventListener('click', logout);
   qs('#refresh-button').addEventListener('click', () => renderCurrent());
   qs('#sidebar-nav').addEventListener('click', navigate);
+  document.addEventListener('input', sanitizeDocumentInput);
   window.addEventListener('session:expired', () => showLogin('Sessao expirada. Entre novamente.'));
 
   if (state.token) {
     showApp();
     renderCurrent();
   }
+}
+
+function sanitizeDocumentInput(event) {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement)) return;
+
+  const limits = {
+    CPF: 11,
+    telefone: 11
+  };
+  const limit = limits[input.name];
+  if (!limit) return;
+
+  input.value = input.value.replace(/\D/g, '').slice(0, limit);
 }
 
 async function login(event) {
@@ -54,6 +79,10 @@ function logout() {
 function navigate(event) {
   const item = event.target.closest('.nav-item');
   if (!item) return;
+  if (!allowedViews().includes(item.dataset.view)) {
+    toast('Seu perfil nao tem permissao para acessar esta area.', 'error');
+    return;
+  }
   setActiveView(item.dataset.view);
   renderCurrent();
 }
@@ -61,10 +90,15 @@ function navigate(event) {
 function showApp() {
   qs('#login-page').classList.add('hidden');
   qs('#app').classList.remove('hidden');
+  configureNavigation();
   const initials = (state.user?.nome || 'SF').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
   qs('#user-avatar').textContent = initials;
   qs('#user-name').textContent = state.user?.nome || 'SmartFat';
   qs('#user-role').textContent = state.user?.perfil || 'admin';
+  const aviso = state.user?.aviso_acesso;
+  if (aviso && aviso.permitido === false) {
+    toast(`Acesso bloqueado: ${aviso.motivo}`, 'error');
+  }
 }
 
 function showLogin(message = '') {
@@ -76,6 +110,10 @@ function showLogin(message = '') {
 }
 
 async function renderCurrent() {
+  const allowed = allowedViews();
+  if (!allowed.includes(state.view)) {
+    setActiveView(allowed[0] || 'dashboard');
+  }
   setActiveView(state.view);
   view.innerHTML = '<div class="loading">Carregando...</div>';
   try {
@@ -86,6 +124,21 @@ async function renderCurrent() {
   }
 }
 
+function allowedViews() {
+  const perfil = state.user?.perfil || 'admin';
+  return roleViews[perfil] || roleViews.recepcionista;
+}
+
+function configureNavigation() {
+  const allowed = allowedViews();
+  qsa('.nav-item').forEach((item) => {
+    item.classList.toggle('hidden', !allowed.includes(item.dataset.view));
+  });
+  if (!allowed.includes(state.view)) {
+    state.view = allowed[0] || 'dashboard';
+  }
+}
+
 async function loadBase() {
   const [alunos, planos] = await Promise.all([api.alunos(), api.planos()]);
   state.cache.alunos = alunos;
@@ -93,6 +146,9 @@ async function loadBase() {
 }
 
 async function renderDashboard() {
+  if (state.user?.perfil === 'aluno') return renderAlunoDashboard();
+  if (['treinador', 'professor'].includes(state.user?.perfil)) return renderTreinadorDashboard();
+
   const [dashboard, financeiro, mensalidades, acessos] = await Promise.all([
     api.dashboard(),
     api.financeiro(),
@@ -130,22 +186,77 @@ async function renderDashboard() {
   `;
 }
 
+async function renderAlunoDashboard() {
+  const [mensalidades, treinos, acessos, status] = await Promise.all([
+    api.mensalidades(),
+    api.treinos(),
+    api.acessos(),
+    api.acessoStatus()
+  ]);
+  const pendentes = mensalidades.filter((item) => item.status === 'Pendente');
+
+  view.innerHTML = `
+    ${accessNotice(status)}
+    <div class="stats-grid">
+      ${stat('Faturas pendentes', pendentes.length, pendentes.length ? 'orange' : 'green')}
+      ${stat('Treinos designados', treinos.length, 'blue')}
+      ${stat('Acessos registrados', acessos.length, 'green')}
+    </div>
+    <div class="grid-2">
+      ${tableCard('Minhas faturas', ['Vencimento', 'Valor', 'Status'], mensalidades.slice(0, 6).map((item) => [
+        date(item.dataVencimento),
+        money(item.valor),
+        statusBadge(item.status)
+      ]))}
+      ${tableCard('Meus treinos', ['Data', 'Descricao'], treinos.slice(0, 6).map((item) => [
+        date(item.data),
+        item.descricao
+      ]))}
+    </div>
+  `;
+}
+
+async function renderTreinadorDashboard() {
+  const [alunos, treinos] = await Promise.all([api.alunos(), api.treinos()]);
+  view.innerHTML = `
+    <div class="stats-grid">
+      ${stat('Alunos acompanhados', alunos.length, 'blue')}
+      ${stat('Treinos designados', treinos.length, 'green')}
+    </div>
+    <div class="grid-2">
+      ${tableCard('Alunos', ['Nome', 'Plano', 'Status'], alunos.slice(0, 8).map((aluno) => [
+        aluno.nome,
+        aluno.plano_nome || '-',
+        statusBadge(aluno.status)
+      ]))}
+      ${tableCard('Ultimos treinos', ['Aluno', 'Data', 'Descricao'], treinos.slice(0, 8).map((item) => [
+        item.aluno_nome,
+        date(item.data),
+        item.descricao
+      ]))}
+    </div>
+  `;
+}
+
 async function renderAlunos() {
   await loadBase();
+  const canManage = state.user?.perfil === 'admin';
   const rows = state.cache.alunos.map((aluno) => [
     aluno.nome,
     aluno.CPF,
     aluno.telefone || '-',
     aluno.plano_nome || '-',
     statusBadge(aluno.status),
-    actions([
+    canManage ? actions([
       ['Editar', `edit:${aluno.idAluno}`],
       ['Remover', `remove:${aluno.idAluno}`, 'danger']
-    ])
+    ]) : '-'
   ]);
 
-  view.innerHTML = cardWithAction('Alunos cadastrados', 'Novo aluno', table(['Nome', 'CPF', 'Telefone', 'Plano', 'Status', 'Acoes'], rows));
-  qs('[data-action="new"]').addEventListener('click', () => alunoModal());
+  view.innerHTML = canManage
+    ? cardWithAction('Alunos cadastrados', 'Novo aluno', table(['Nome', 'CPF', 'Telefone', 'Plano', 'Status', 'Acoes'], rows))
+    : tableCard('Alunos cadastrados', ['Nome', 'CPF', 'Telefone', 'Plano', 'Status', 'Acoes'], rows);
+  if (canManage) qs('[data-action="new"]').addEventListener('click', () => alunoModal());
   bindActions({
     edit: (id) => alunoModal(state.cache.alunos.find((item) => String(item.idAluno) === id)),
     remove: async (id) => {
@@ -177,6 +288,77 @@ function alunoModal(aluno = {}) {
     }
     toast('Aluno salvo');
     renderCurrent();
+  });
+}
+
+async function renderCadastro() {
+  state.cache.planos = await api.planos();
+  const vencimentoPadrao = dateInputValue(30);
+
+  view.innerHTML = `
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Cadastrar aluno</h2></div>
+        <form id="student-register-form" class="form-stack">
+          <div class="form-grid">
+            ${input('nome', 'Nome completo', '', true)}
+            ${input('CPF', 'CPF', '', true)}
+            ${input('telefone', 'Telefone')}
+            ${input('email', 'E-mail de login', '', true, 'email')}
+            ${input('senha', 'Senha inicial', '', true, 'password')}
+            <label class="form-group">
+              <span class="form-label">Plano</span>
+              <select class="form-select" name="Plano_idPlano" required>${options(state.cache.planos, 'idPlano', 'nome')}</select>
+            </label>
+            ${select('status', 'Status', [['Ativo', 'Ativo'], ['Inativo', 'Inativo']], 'Ativo')}
+            ${input('mensalidade_valor', 'Valor da mensalidade', '', false, 'number', '0.01')}
+            ${input('dataVencimento', 'Vencimento inicial', vencimentoPadrao, true, 'date')}
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Cadastrar aluno</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Cadastrar professor</h2></div>
+        <form id="teacher-register-form" class="form-stack">
+          <div class="form-grid">
+            ${input('nome', 'Nome completo', '', true)}
+            ${input('email', 'E-mail de login', '', true, 'email')}
+            ${input('senha', 'Senha inicial', '', true, 'password')}
+            ${select('perfil', 'Perfil', [['treinador', 'Treinador'], ['professor', 'Professor']], 'treinador')}
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Cadastrar professor</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  qs('#student-register-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
+      await api.cadastrarUsuario({ ...payload, tipo: 'aluno' });
+      toast('Aluno cadastrado com login e mensalidade inicial');
+      renderCurrent();
+    } catch (error) {
+      toast(error.message, 'error');
+    }
+  });
+
+  qs('#teacher-register-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
+      await api.cadastrarUsuario({ ...payload, tipo: 'professor' });
+      toast('Professor cadastrado com sucesso');
+      event.currentTarget.reset();
+    } catch (error) {
+      toast(error.message, 'error');
+    }
   });
 }
 
@@ -224,18 +406,21 @@ function planoModal(plano = {}) {
 }
 
 async function renderMensalidades() {
-  await loadBase();
+  const isAdmin = state.user?.perfil === 'admin';
+  if (isAdmin) await loadBase();
   const mensalidades = await api.mensalidades();
-  const rows = mensalidades.map((mensalidade) => [
-    mensalidade.aluno_nome,
-    date(mensalidade.dataVencimento),
-    money(mensalidade.valor),
-    statusBadge(mensalidade.status),
-    mensalidade.status === 'Pago' ? '-' : actions([['Pagar', `pay:${mensalidade.idMensalidade}`]])
-  ]);
+  const rows = mensalidades.map((mensalidade) => {
+    const payAction = mensalidade.status === 'Pago' ? '-' : actions([['Pagar', `pay:${mensalidade.idMensalidade}`]]);
+    return isAdmin
+      ? [mensalidade.aluno_nome, date(mensalidade.dataVencimento), money(mensalidade.valor), statusBadge(mensalidade.status), payAction]
+      : [date(mensalidade.dataVencimento), money(mensalidade.valor), statusBadge(mensalidade.status), payAction];
+  });
+  const headers = isAdmin ? ['Aluno', 'Vencimento', 'Valor', 'Status', 'Acoes'] : ['Vencimento', 'Valor', 'Status', 'Acoes'];
 
-  view.innerHTML = cardWithAction('Mensalidades', 'Nova mensalidade', table(['Aluno', 'Vencimento', 'Valor', 'Status', 'Acoes'], rows));
-  qs('[data-action="new"]').addEventListener('click', mensalidadeModal);
+  view.innerHTML = isAdmin
+    ? cardWithAction('Mensalidades', 'Nova mensalidade', table(headers, rows))
+    : tableCard('Minhas mensalidades', headers, rows);
+  if (isAdmin) qs('[data-action="new"]').addEventListener('click', mensalidadeModal);
   bindActions({
     pay: async (id) => {
       await api.pagarMensalidade(id);
@@ -263,6 +448,8 @@ function mensalidadeModal() {
 }
 
 async function renderAcesso() {
+  if (state.user?.perfil === 'aluno') return renderMeuAcesso();
+
   await loadBase();
   const acessos = await api.acessos();
   view.innerHTML = `
@@ -273,43 +460,61 @@ async function renderAcesso() {
         <button class="btn btn-primary" type="submit">Liberar entrada</button>
       </form>
     </div>
-    ${tableCard('Historico de acesso', ['Aluno', 'Entrada', 'Saida'], acessos.map((item) => [
+    ${tableCard('Historico de acesso', ['Aluno', 'Entrada', 'Resultado', 'Motivo'], acessos.map((item) => [
       item.aluno_nome,
       dateTime(item.dataHoraEntrada),
-      dateTime(item.dataHoraSaida)
+      statusBadge(Number(item.permitido) === 0 ? 'Negado' : 'Liberado'),
+      item.motivoNegacao || '-'
     ]))}
   `;
   qs('#access-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    await api.registrarEntrada(new FormData(event.currentTarget).get('aluno_id'));
-    toast('Entrada liberada');
+    try {
+      const result = await api.registrarEntrada(new FormData(event.currentTarget).get('aluno_id'));
+      toast(result.motivo || 'Entrada liberada');
+    } catch (error) {
+      toast(`Entrada negada: ${error.message}`, 'error');
+    }
     renderCurrent();
   });
 }
 
+async function renderMeuAcesso() {
+  const [status, acessos] = await Promise.all([api.acessoStatus(), api.acessos()]);
+  view.innerHTML = `
+    ${accessNotice(status)}
+    ${tableCard('Meu historico de acesso', ['Entrada', 'Resultado', 'Motivo'], acessos.map((item) => [
+      dateTime(item.dataHoraEntrada),
+      statusBadge(Number(item.permitido) === 0 ? 'Negado' : 'Liberado'),
+      item.motivoNegacao || '-'
+    ]))}
+  `;
+}
+
 async function renderTreinos() {
-  await loadBase();
+  const isAluno = state.user?.perfil === 'aluno';
+  if (!isAluno) await loadBase();
   const [treinos, avaliacoes] = await Promise.all([api.treinos(), api.avaliacoes()]);
   view.innerHTML = `
-    <div class="split-actions">
-      <button class="btn btn-primary" data-action="new-training" type="button">Novo treino</button>
-      <button class="btn btn-ghost" data-action="new-evaluation" type="button">Nova avaliacao</button>
-    </div>
+    ${isAluno ? '' : `
+      <div class="split-actions">
+        <button class="btn btn-primary" data-action="new-training" type="button">Novo treino</button>
+        <button class="btn btn-ghost" data-action="new-evaluation" type="button">Nova avaliacao</button>
+      </div>
+    `}
     <div class="grid-2">
-      ${tableCard('Treinos', ['Aluno', 'Data', 'Descricao'], treinos.map((item) => [
-        item.aluno_nome,
-        date(item.data),
-        item.descricao
-      ]))}
-      ${tableCard('Avaliacoes fisicas', ['Aluno', 'Peso', 'Altura'], avaliacoes.map((item) => [
-        item.aluno_nome,
-        `${item.peso || '-'} kg`,
-        `${item.altura || '-'} m`
-      ]))}
+      ${tableCard(isAluno ? 'Meus treinos' : 'Treinos', isAluno ? ['Data', 'Descricao'] : ['Aluno', 'Data', 'Descricao'], treinos.map((item) => (
+        isAluno ? [date(item.data), item.descricao] : [item.aluno_nome, date(item.data), item.descricao]
+      )))}
+      ${tableCard(isAluno ? 'Minhas avaliacoes fisicas' : 'Avaliacoes fisicas', isAluno ? ['Peso', 'Altura'] : ['Aluno', 'Peso', 'Altura'], avaliacoes.map((item) => (
+        isAluno ? [`${item.peso || '-'} kg`, `${item.altura || '-'} m`] : [item.aluno_nome, `${item.peso || '-'} kg`, `${item.altura || '-'} m`]
+      )))}
     </div>
   `;
-  qs('[data-action="new-training"]').addEventListener('click', treinoModal);
-  qs('[data-action="new-evaluation"]').addEventListener('click', avaliacaoModal);
+  if (!isAluno) {
+    qs('[data-action="new-training"]').addEventListener('click', treinoModal);
+    qs('[data-action="new-evaluation"]').addEventListener('click', avaliacaoModal);
+  }
 }
 
 function treinoModal() {
@@ -368,6 +573,39 @@ async function renderFinanceiro() {
         date(item.dataVencimento),
         money(item.valor)
       ]))}
+    </div>
+  `;
+}
+
+async function renderRelatorios() {
+  const [financeiro, acesso] = await Promise.all([api.relatorioFinanceiro(), api.relatorioAcesso()]);
+
+  view.innerHTML = `
+    <div class="grid-2">
+      ${tableCard('Relatorio financeiro', ['Periodo', 'Recebido', 'Pendente', 'Mensalidades'], financeiro.map((item) => [
+        item.periodo,
+        money(item.recebido),
+        money(item.pendente),
+        item.total_mensalidades
+      ]))}
+      ${tableCard('Relatorio de acesso', ['Aluno', 'Tentativas', 'Liberados', 'Negados', 'Ultimo motivo'], acesso.map((item) => [
+        item.aluno_nome,
+        item.total_tentativas,
+        item.liberados || 0,
+        item.negados || 0,
+        item.ultimo_motivo_negado || '-'
+      ]))}
+    </div>
+  `;
+}
+
+function accessNotice(status) {
+  const type = status?.permitido ? 'success' : 'error';
+  const title = status?.permitido ? 'Acesso liberado' : 'Acesso bloqueado';
+  return `
+    <div class="notice notice-${type} mb-4">
+      <strong>${title}</strong>
+      <span>${status?.motivo || 'Nao foi possivel validar sua situacao de acesso.'}</span>
     </div>
   `;
 }
@@ -435,12 +673,23 @@ function bindActions(handlers) {
 }
 
 function input(name, label, value = '', required = false, type = 'text', step = '') {
+  const numericAttrs = {
+    CPF: 'maxlength="11" minlength="11" inputmode="numeric" pattern="\\d{11}"',
+    telefone: 'maxlength="11" inputmode="numeric" pattern="\\d{0,11}"'
+  };
+  const extraAttrs = numericAttrs[name] || '';
   return `
     <label class="form-group">
       <span class="form-label">${label}</span>
-      <input class="form-input" name="${name}" type="${type}" value="${value || ''}" ${required ? 'required' : ''} ${step ? `step="${step}"` : ''}>
+      <input class="form-input" name="${name}" type="${type}" value="${value || ''}" ${required ? 'required' : ''} ${step ? `step="${step}"` : ''} ${extraAttrs}>
     </label>
   `;
+}
+
+function dateInputValue(daysFromToday = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromToday);
+  return date.toISOString().slice(0, 10);
 }
 
 function select(name, label, items, selected) {

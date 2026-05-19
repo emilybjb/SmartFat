@@ -15,7 +15,9 @@ export function setSession(session) {
   state.token = session.token;
   state.user = {
     nome: session.nome,
-    perfil: session.perfil
+    perfil: session.perfil,
+    aluno_id: session.aluno_id,
+    aviso_acesso: session.aviso_acesso
   };
   localStorage.setItem(TOKEN_KEY, session.token);
   localStorage.setItem(USER_KEY, JSON.stringify(state.user));
