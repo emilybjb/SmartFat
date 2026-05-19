@@ -13,9 +13,10 @@ def get_all():
     try:
         with conn.cursor() as cur:
             sql = """
-                SELECT m.*, a.nome as aluno_nome
+                SELECT m.*, a.nome as aluno_nome, f.dataPagamento
                 FROM mensalidades m
                 JOIN alunos a ON m.Aluno_idAluno = a.idAluno
+                LEFT JOIN financeiros f ON m.Financeiro_idFinanceiro = f.idFinanceiro
             """
             params = ()
             if user['perfil'] == 'aluno':
@@ -55,9 +56,16 @@ def pagar(id):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            cur.execute("""
+                SELECT idMensalidade, valor, status, Aluno_idAluno, Financeiro_idFinanceiro
+                FROM mensalidades
+                WHERE idMensalidade=%s
+            """, (id,))
+            mensalidade = cur.fetchone()
+            if not mensalidade:
+                return jsonify({'erro': 'Mensalidade nao encontrada.'}), 404
+
             if user['perfil'] == 'aluno':
-                cur.execute("SELECT Aluno_idAluno FROM mensalidades WHERE idMensalidade=%s", (id,))
-                mensalidade = cur.fetchone()
                 if not mensalidade or int(mensalidade['Aluno_idAluno']) != int(user.get('aluno_id') or 0):
                     return jsonify({
                         'erro': 'Acesso negado',
@@ -69,8 +77,21 @@ def pagar(id):
                     'motivo': 'Somente administradores e o proprio aluno podem marcar mensalidades como pagas.'
                 }), 403
 
-            cur.execute("UPDATE mensalidades SET status='Pago' WHERE idMensalidade=%s", (id,))
+            if mensalidade['status'] == 'Pago':
+                return jsonify({'msg': 'Mensalidade ja estava paga'})
+
+            cur.execute("""
+                INSERT INTO financeiros (valor, dataPagamento)
+                VALUES (%s, CURDATE())
+            """, (mensalidade['valor'],))
+            financeiro_id = cur.lastrowid
+
+            cur.execute("""
+                UPDATE mensalidades
+                SET status='Pago', Financeiro_idFinanceiro=%s
+                WHERE idMensalidade=%s
+            """, (financeiro_id, id))
             conn.commit()
-            return jsonify({'msg': 'Mensalidade paga'})
+            return jsonify({'msg': 'Mensalidade paga', 'financeiro_id': financeiro_id})
     finally:
         conn.close()

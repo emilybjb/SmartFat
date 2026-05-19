@@ -51,6 +51,7 @@ export const api = {
   acessos: () => request('/acesso/'),
   acessoStatus: () => request('/acesso/status'),
   registrarEntrada: (aluno_id) => request('/acesso/entrada', { method: 'POST', body: JSON.stringify({ aluno_id }) }),
+  registrarSaida: (aluno_id) => request('/acesso/saida', { method: 'PUT', body: JSON.stringify({ aluno_id }) }),
   treinos: () => request('/treinos/'),
   criarTreino: (payload) => request('/treinos/', { method: 'POST', body: JSON.stringify(payload) }),
   atualizarTreino: (id, payload) => request(`/treinos/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
@@ -60,5 +61,6 @@ export const api = {
   atualizarAvaliacao: (id, payload) => request(`/treinos/avaliacoes/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   removerAvaliacao: (id) => request(`/treinos/avaliacoes/${id}`, { method: 'DELETE' }),
   relatorioFinanceiro: () => request('/relatorios/financeiro'),
+  relatorioOperacional: () => request('/relatorios/operacional'),
   relatorioAcesso: () => request('/relatorios/acesso')
 };

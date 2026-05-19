@@ -14,12 +14,13 @@ def relatorio_financeiro():
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT
-                    DATE_FORMAT(dataVencimento, '%%Y-%%m') as periodo,
-                    COALESCE(SUM(CASE WHEN status = 'Pago' THEN valor ELSE 0 END), 0) as recebido,
-                    COALESCE(SUM(CASE WHEN status = 'Pendente' THEN valor ELSE 0 END), 0) as pendente,
+                    DATE_FORMAT(COALESCE(f.dataPagamento, m.dataVencimento), '%%Y-%%m') as periodo,
+                    COALESCE(SUM(CASE WHEN m.status = 'Pago' THEN m.valor ELSE 0 END), 0) as recebido,
+                    COALESCE(SUM(CASE WHEN m.status = 'Pendente' THEN m.valor ELSE 0 END), 0) as pendente,
                     COUNT(*) as total_mensalidades
-                FROM mensalidades
-                GROUP BY DATE_FORMAT(dataVencimento, '%%Y-%%m')
+                FROM mensalidades m
+                LEFT JOIN financeiros f ON m.Financeiro_idFinanceiro = f.idFinanceiro
+                GROUP BY DATE_FORMAT(COALESCE(f.dataPagamento, m.dataVencimento), '%%Y-%%m')
                 ORDER BY periodo DESC
                 LIMIT %s
             """, (meses,))
@@ -35,10 +36,18 @@ def relatorio_operacional():
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT ro.*, a.nome as aluno_nome
-                FROM relatorios_operacionais ro
-                JOIN alunos a ON ro.Aluno_idAluno = a.idAluno
-                ORDER BY ro.frequenciaMensal DESC
+                SELECT
+                    a.nome as aluno_nome,
+                    COUNT(ac.idAcesso) as frequenciaMensal,
+                    COALESCE(SUM(TIMESTAMPDIFF(MINUTE, ac.dataHoraEntrada, ac.dataHoraSaida)), 0) as minutosTreino,
+                    MAX(ac.dataHoraEntrada) as ultimo_acesso
+                FROM alunos a
+                LEFT JOIN acessos ac ON ac.Aluno_idAluno = a.idAluno
+                    AND ac.permitido = 1
+                    AND MONTH(ac.dataHoraEntrada) = MONTH(CURDATE())
+                    AND YEAR(ac.dataHoraEntrada) = YEAR(CURDATE())
+                GROUP BY a.idAluno, a.nome
+                ORDER BY frequenciaMensal DESC, a.nome
             """)
             return jsonify(cur.fetchall())
     finally:
@@ -85,7 +94,14 @@ def dashboard():
             cur.execute("SELECT COUNT(*) as total FROM mensalidades WHERE status='Pendente'")
             mensalidades_pendentes = cur.fetchone()['total']
 
-            cur.execute("SELECT COALESCE(SUM(valor),0) as total FROM mensalidades WHERE status='Pago' AND MONTH(dataVencimento)=MONTH(CURDATE())")
+            cur.execute("""
+                SELECT COALESCE(SUM(m.valor),0) as total
+                FROM mensalidades m
+                LEFT JOIN financeiros f ON m.Financeiro_idFinanceiro = f.idFinanceiro
+                WHERE m.status='Pago'
+                  AND MONTH(COALESCE(f.dataPagamento, m.dataVencimento))=MONTH(CURDATE())
+                  AND YEAR(COALESCE(f.dataPagamento, m.dataVencimento))=YEAR(CURDATE())
+            """)
             receita_mes = cur.fetchone()['total']
 
             cur.execute("SELECT COUNT(*) as total FROM acessos WHERE DATE(dataHoraEntrada)=CURDATE()")

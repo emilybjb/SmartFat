@@ -31,6 +31,46 @@ def validar_acesso(cur, aluno_id):
     return True, 'Acesso liberado.'
 
 
+def atualizar_relatorio_operacional(cur, aluno_id):
+    cur.execute("""
+        SELECT
+            COUNT(*) as frequencia_mensal,
+            COALESCE(SUM(TIMESTAMPDIFF(MINUTE, dataHoraEntrada, dataHoraSaida)), 0) as minutos_treino
+        FROM acessos
+        WHERE Aluno_idAluno = %s
+          AND permitido = 1
+          AND MONTH(dataHoraEntrada) = MONTH(CURDATE())
+          AND YEAR(dataHoraEntrada) = YEAR(CURDATE())
+    """, (aluno_id,))
+    dados = cur.fetchone()
+    frequencia = dados['frequencia_mensal'] or 0
+    aulas = max(1, int((dados['minutos_treino'] or 0) / 45)) if frequencia else 0
+
+    cur.execute("""
+        SELECT idRelatorioOperacional
+        FROM relatorios_operacionais
+        WHERE Aluno_idAluno = %s
+        ORDER BY idRelatorioOperacional DESC
+        LIMIT 1
+    """, (aluno_id,))
+    relatorio = cur.fetchone()
+
+    if relatorio:
+        relatorio_id = relatorio['idRelatorioOperacional']
+        cur.execute("""
+            UPDATE relatorios_operacionais
+            SET frequenciaMensal=%s, quantAulas=%s
+            WHERE idRelatorioOperacional=%s
+        """, (frequencia, aulas, relatorio_id))
+        return relatorio_id
+
+    cur.execute("""
+        INSERT INTO relatorios_operacionais (frequenciaMensal, quantAulas, Aluno_idAluno)
+        VALUES (%s, %s, %s)
+    """, (frequencia, aulas, aluno_id))
+    return cur.lastrowid
+
+
 @acesso_bp.route('/entrada', methods=['POST'])
 @roles_required('admin', 'treinador', 'professor', 'recepcionista')
 def registrar_entrada():
@@ -57,8 +97,53 @@ def registrar_entrada():
                 INSERT INTO acessos (dataHoraEntrada, Aluno_idAluno, permitido)
                 VALUES (%s, %s, %s)
             """, (datetime.now(), aluno_id, 1))
+            acesso_id = cur.lastrowid
+            relatorio_id = atualizar_relatorio_operacional(cur, aluno_id)
+            cur.execute("""
+                UPDATE acessos
+                SET RelatorioOperacional_idRelatorioOperacional=%s
+                WHERE idAcesso=%s
+            """, (relatorio_id, acesso_id))
             conn.commit()
-            return jsonify({'permitido': True, 'motivo': motivo, 'id': cur.lastrowid})
+            return jsonify({'permitido': True, 'motivo': motivo, 'id': acesso_id})
+    finally:
+        conn.close()
+
+@acesso_bp.route('/saida', methods=['PUT'])
+@roles_required('admin', 'treinador', 'professor', 'recepcionista')
+def registrar_saida():
+    data = request.get_json()
+    aluno_id = data.get('aluno_id')
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT idAcesso
+                FROM acessos
+                WHERE Aluno_idAluno=%s
+                  AND permitido=1
+                  AND dataHoraSaida IS NULL
+                ORDER BY dataHoraEntrada DESC
+                LIMIT 1
+            """, (aluno_id,))
+            acesso = cur.fetchone()
+            if not acesso:
+                return jsonify({'erro': 'Nao existe entrada aberta para este aluno.'}), 404
+
+            cur.execute("""
+                UPDATE acessos
+                SET dataHoraSaida=%s
+                WHERE idAcesso=%s
+            """, (datetime.now(), acesso['idAcesso']))
+            relatorio_id = atualizar_relatorio_operacional(cur, aluno_id)
+            cur.execute("""
+                UPDATE acessos
+                SET RelatorioOperacional_idRelatorioOperacional=%s
+                WHERE idAcesso=%s
+            """, (relatorio_id, acesso['idAcesso']))
+            conn.commit()
+            return jsonify({'msg': 'Saida registrada', 'id': acesso['idAcesso']})
     finally:
         conn.close()
 

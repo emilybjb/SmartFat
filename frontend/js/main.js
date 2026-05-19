@@ -454,15 +454,17 @@ async function renderAcesso() {
   const acessos = await api.acessos();
   view.innerHTML = `
     <div class="card mb-4">
-      <div class="card-header"><h2 class="card-title">Registrar entrada</h2></div>
+      <div class="card-header"><h2 class="card-title">Registrar acesso</h2></div>
       <form class="form-inline" id="access-form">
         <select class="form-select" name="aluno_id" required>${options(state.cache.alunos, 'idAluno', 'nome')}</select>
         <button class="btn btn-primary" type="submit">Liberar entrada</button>
+        <button class="btn btn-ghost" id="exit-button" type="button">Registrar saida</button>
       </form>
     </div>
-    ${tableCard('Historico de acesso', ['Aluno', 'Entrada', 'Resultado', 'Motivo'], acessos.map((item) => [
+    ${tableCard('Historico de acesso', ['Aluno', 'Entrada', 'Saida', 'Resultado', 'Motivo'], acessos.map((item) => [
       item.aluno_nome,
       dateTime(item.dataHoraEntrada),
+      dateTime(item.dataHoraSaida),
       statusBadge(Number(item.permitido) === 0 ? 'Negado' : 'Liberado'),
       item.motivoNegacao || '-'
     ]))}
@@ -477,14 +479,25 @@ async function renderAcesso() {
     }
     renderCurrent();
   });
+  qs('#exit-button').addEventListener('click', async () => {
+    try {
+      const alunoId = new FormData(qs('#access-form')).get('aluno_id');
+      await api.registrarSaida(alunoId);
+      toast('Saida registrada');
+    } catch (error) {
+      toast(error.message, 'error');
+    }
+    renderCurrent();
+  });
 }
 
 async function renderMeuAcesso() {
   const [status, acessos] = await Promise.all([api.acessoStatus(), api.acessos()]);
   view.innerHTML = `
     ${accessNotice(status)}
-    ${tableCard('Meu historico de acesso', ['Entrada', 'Resultado', 'Motivo'], acessos.map((item) => [
+    ${tableCard('Meu historico de acesso', ['Entrada', 'Saida', 'Resultado', 'Motivo'], acessos.map((item) => [
       dateTime(item.dataHoraEntrada),
+      dateTime(item.dataHoraSaida),
       statusBadge(Number(item.permitido) === 0 ? 'Negado' : 'Liberado'),
       item.motivoNegacao || '-'
     ]))}
@@ -597,11 +610,13 @@ async function renderFinanceiro() {
       ${stat('Total recebido', money(financeiro.total_recebido), 'green')}
       ${stat('Total pendente', money(financeiro.total_pendente), 'orange')}
       ${stat('Alunos ativos', financeiro.total_alunos_ativos, 'blue')}
+      ${stat('Mensalidades vencidas', financeiro.mensalidades_vencidas, 'red')}
     </div>
     <div class="grid-2">
-      ${tableCard('Recebimentos', ['Aluno', 'Vencimento', 'Valor'], pagas.map((item) => [
+      ${tableCard('Recebimentos', ['Aluno', 'Vencimento', 'Pagamento', 'Valor'], pagas.map((item) => [
         item.aluno_nome,
         date(item.dataVencimento),
+        date(item.dataPagamento),
         money(item.valor)
       ]))}
       ${tableCard('Pendencias', ['Aluno', 'Vencimento', 'Valor'], pendentes.map((item) => [
@@ -614,7 +629,11 @@ async function renderFinanceiro() {
 }
 
 async function renderRelatorios() {
-  const [financeiro, acesso] = await Promise.all([api.relatorioFinanceiro(), api.relatorioAcesso()]);
+  const [financeiro, acesso, operacional] = await Promise.all([
+    api.relatorioFinanceiro(),
+    api.relatorioAcesso(),
+    api.relatorioOperacional()
+  ]);
 
   view.innerHTML = `
     <div class="grid-2">
@@ -630,6 +649,12 @@ async function renderRelatorios() {
         item.liberados || 0,
         item.negados || 0,
         item.ultimo_motivo_negado || '-'
+      ]))}
+      ${tableCard('Relatorio operacional', ['Aluno', 'Frequencia mensal', 'Minutos em treino', 'Ultimo acesso'], operacional.map((item) => [
+        item.aluno_nome,
+        item.frequenciaMensal || 0,
+        item.minutosTreino || 0,
+        dateTime(item.ultimo_acesso)
       ]))}
     </div>
   `;

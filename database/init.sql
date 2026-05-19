@@ -144,27 +144,33 @@ INSERT INTO alunos (nome, CPF, telefone, status, Plano_idPlano) VALUES
 ('Patricia Melo', '505.505.505-50', '27999990014', 'Ativo', 2),
 ('Bruno Castro',  '606.606.606-60', '27999990015', 'Inativo', 1);
 
-INSERT INTO financeiros (valor, dataPagamento) VALUES (0, CURDATE());
+INSERT INTO financeiros (valor, dataPagamento) VALUES
+(129.90, DATE_ADD(CURDATE(), INTERVAL -5 DAY)),
+(529.90, DATE_ADD(CURDATE(), INTERVAL -2 DAY)),
+(89.90,  DATE_ADD(CURDATE(), INTERVAL -1 DAY)),
+(89.90,  DATE_ADD(CURDATE(), INTERVAL -35 DAY)),
+(129.90, DATE_ADD(CURDATE(), INTERVAL -32 DAY)),
+(299.90, DATE_ADD(CURDATE(), INTERVAL -15 DAY));
 
 INSERT INTO mensalidades (valor, dataVencimento, status, Aluno_idAluno, Financeiro_idFinanceiro) VALUES
-(89.90,  DATE_ADD(CURDATE(), INTERVAL 10 DAY),  'Pendente', 1, 1),
+(89.90,  DATE_ADD(CURDATE(), INTERVAL 10 DAY),  'Pendente', 1, NULL),
 (129.90, DATE_ADD(CURDATE(), INTERVAL -5 DAY),  'Pago',     2, 1),
-(299.90, DATE_ADD(CURDATE(), INTERVAL 20 DAY),  'Pendente', 3, 1),
-(89.90,  DATE_ADD(CURDATE(), INTERVAL -30 DAY), 'Pendente', 4, 1),
-(89.90,  DATE_ADD(CURDATE(), INTERVAL -7 DAY),  'Pendente', 5, 1),
-(129.90, DATE_ADD(CURDATE(), INTERVAL 12 DAY),  'Pendente', 6, 1),
-(529.90, DATE_ADD(CURDATE(), INTERVAL -2 DAY),  'Pago',     7, 1),
-(899.90, DATE_ADD(CURDATE(), INTERVAL 40 DAY),  'Pendente', 8, 1),
-(89.90,  DATE_ADD(CURDATE(), INTERVAL -12 DAY), 'Pendente', 9, 1),
-(129.90, DATE_ADD(CURDATE(), INTERVAL -20 DAY), 'Pendente', 10, 1),
-(299.90, DATE_ADD(CURDATE(), INTERVAL 25 DAY),  'Pendente', 11, 1),
-(89.90,  DATE_ADD(CURDATE(), INTERVAL -1 DAY),  'Pago',     12, 1),
-(529.90, DATE_ADD(CURDATE(), INTERVAL 18 DAY),  'Pendente', 13, 1),
-(129.90, DATE_ADD(CURDATE(), INTERVAL 5 DAY),   'Pendente', 14, 1),
-(89.90,  DATE_ADD(CURDATE(), INTERVAL -45 DAY), 'Pendente', 15, 1),
-(89.90,  DATE_ADD(CURDATE(), INTERVAL -35 DAY), 'Pago',     1, 1),
-(129.90, DATE_ADD(CURDATE(), INTERVAL -32 DAY), 'Pago',     6, 1),
-(299.90, DATE_ADD(CURDATE(), INTERVAL -15 DAY), 'Pago',     11, 1);
+(299.90, DATE_ADD(CURDATE(), INTERVAL 20 DAY),  'Pendente', 3, NULL),
+(89.90,  DATE_ADD(CURDATE(), INTERVAL -30 DAY), 'Pendente', 4, NULL),
+(89.90,  DATE_ADD(CURDATE(), INTERVAL -7 DAY),  'Pendente', 5, NULL),
+(129.90, DATE_ADD(CURDATE(), INTERVAL 12 DAY),  'Pendente', 6, NULL),
+(529.90, DATE_ADD(CURDATE(), INTERVAL -2 DAY),  'Pago',     7, 2),
+(899.90, DATE_ADD(CURDATE(), INTERVAL 40 DAY),  'Pendente', 8, NULL),
+(89.90,  DATE_ADD(CURDATE(), INTERVAL -12 DAY), 'Pendente', 9, NULL),
+(129.90, DATE_ADD(CURDATE(), INTERVAL -20 DAY), 'Pendente', 10, NULL),
+(299.90, DATE_ADD(CURDATE(), INTERVAL 25 DAY),  'Pendente', 11, NULL),
+(89.90,  DATE_ADD(CURDATE(), INTERVAL -1 DAY),  'Pago',     12, 3),
+(529.90, DATE_ADD(CURDATE(), INTERVAL 18 DAY),  'Pendente', 13, NULL),
+(129.90, DATE_ADD(CURDATE(), INTERVAL 5 DAY),   'Pendente', 14, NULL),
+(89.90,  DATE_ADD(CURDATE(), INTERVAL -45 DAY), 'Pendente', 15, NULL),
+(89.90,  DATE_ADD(CURDATE(), INTERVAL -35 DAY), 'Pago',     1, 4),
+(129.90, DATE_ADD(CURDATE(), INTERVAL -32 DAY), 'Pago',     6, 5),
+(299.90, DATE_ADD(CURDATE(), INTERVAL -15 DAY), 'Pago',     11, 6);
 
 INSERT INTO treinos (descricao, data, Aluno_idTreino) VALUES
 ('Treino A - membros superiores', CURDATE(), 5),
@@ -211,3 +217,20 @@ INSERT INTO acessos (dataHoraEntrada, dataHoraSaida, permitido, motivoNegacao, A
 (DATE_SUB(NOW(), INTERVAL 6 HOUR), DATE_SUB(NOW(), INTERVAL 5 HOUR), 1, NULL, 13),
 (DATE_SUB(NOW(), INTERVAL 3 HOUR), DATE_SUB(NOW(), INTERVAL 2 HOUR), 1, NULL, 14),
 (DATE_SUB(NOW(), INTERVAL 2 HOUR), NULL, 0, 'Cadastro do aluno esta inativo.', 15);
+
+INSERT INTO relatorios_operacionais (frequenciaMensal, quantAulas, Aluno_idAluno)
+SELECT
+    COUNT(ac.idAcesso) as frequenciaMensal,
+    GREATEST(1, FLOOR(COALESCE(SUM(TIMESTAMPDIFF(MINUTE, ac.dataHoraEntrada, ac.dataHoraSaida)), 0) / 45)) as quantAulas,
+    a.idAluno
+FROM alunos a
+JOIN acessos ac ON ac.Aluno_idAluno = a.idAluno
+WHERE ac.permitido = 1
+  AND MONTH(ac.dataHoraEntrada) = MONTH(CURDATE())
+  AND YEAR(ac.dataHoraEntrada) = YEAR(CURDATE())
+GROUP BY a.idAluno;
+
+UPDATE acessos ac
+JOIN relatorios_operacionais ro ON ro.Aluno_idAluno = ac.Aluno_idAluno
+SET ac.RelatorioOperacional_idRelatorioOperacional = ro.idRelatorioOperacional
+WHERE ac.permitido = 1;
