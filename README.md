@@ -12,8 +12,7 @@ SmartFat/
 │   ├── routes/               # Blueprints da API
 │   └── utils/                # Utilitarios compartilhados
 ├── database/
-│   ├── init.sql              # Script inicial do banco
-│   └── permissions_update.sql # Atualizacao para bancos ja existentes
+│   └── init.sql              # Script inicial do banco
 ├── docker/
 │   ├── Dockerfile            # Imagem do backend
 │   ├── docker-compose.yml    # Backend, MySQL e Nginx
@@ -44,11 +43,3 @@ Depois acesse:
 - Administrador: `admin@smartfat.com` / `admin123`
 - Treinador: `treinador@smartfat.com` / `treinador123`
 - Aluno: `aluno@smartfat.com` / `aluno123`
-
-## Banco Ja Criado
-
-O MySQL executa `database/init.sql` apenas quando o volume e criado pela primeira vez. Para aplicar dados e campos novos em um banco que ja existe, rode o script de atualizacao dentro do container:
-
-```bash
-docker exec -i smartfat_db mysql -usmartfat_user -psmartfat_pass smartfat < database/permissions_update.sql
-```
