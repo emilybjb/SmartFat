@@ -495,6 +495,8 @@ async function renderTreinos() {
   const isAluno = state.user?.perfil === 'aluno';
   if (!isAluno) await loadBase();
   const [treinos, avaliacoes] = await Promise.all([api.treinos(), api.avaliacoes()]);
+  const treinoHeaders = isAluno ? ['Data', 'Descricao'] : ['Aluno', 'Data', 'Descricao', 'Acoes'];
+  const avaliacaoHeaders = isAluno ? ['Peso', 'Altura'] : ['Aluno', 'Peso', 'Altura', 'Acoes'];
   view.innerHTML = `
     ${isAluno ? '' : `
       <div class="split-actions">
@@ -503,49 +505,83 @@ async function renderTreinos() {
       </div>
     `}
     <div class="grid-2">
-      ${tableCard(isAluno ? 'Meus treinos' : 'Treinos', isAluno ? ['Data', 'Descricao'] : ['Aluno', 'Data', 'Descricao'], treinos.map((item) => (
-        isAluno ? [date(item.data), item.descricao] : [item.aluno_nome, date(item.data), item.descricao]
+      ${tableCard(isAluno ? 'Meus treinos' : 'Treinos', treinoHeaders, treinos.map((item) => (
+        isAluno
+          ? [date(item.data), item.descricao]
+          : [item.aluno_nome, date(item.data), item.descricao, actions([
+              ['Editar', `edit-training:${item.idTreino}`],
+              ['Remover', `remove-training:${item.idTreino}`, 'danger']
+            ])]
       )))}
-      ${tableCard(isAluno ? 'Minhas avaliacoes fisicas' : 'Avaliacoes fisicas', isAluno ? ['Peso', 'Altura'] : ['Aluno', 'Peso', 'Altura'], avaliacoes.map((item) => (
-        isAluno ? [`${item.peso || '-'} kg`, `${item.altura || '-'} m`] : [item.aluno_nome, `${item.peso || '-'} kg`, `${item.altura || '-'} m`]
+      ${tableCard(isAluno ? 'Minhas avaliacoes fisicas' : 'Avaliacoes fisicas', avaliacaoHeaders, avaliacoes.map((item) => (
+        isAluno
+          ? [`${item.peso || '-'} kg`, `${item.altura || '-'} m`]
+          : [item.aluno_nome, `${item.peso || '-'} kg`, `${item.altura || '-'} m`, actions([
+              ['Editar', `edit-evaluation:${item.idAvaliacaoFisica}`],
+              ['Remover', `remove-evaluation:${item.idAvaliacaoFisica}`, 'danger']
+            ])]
       )))}
     </div>
   `;
   if (!isAluno) {
     qs('[data-action="new-training"]').addEventListener('click', treinoModal);
     qs('[data-action="new-evaluation"]').addEventListener('click', avaliacaoModal);
+    bindActions({
+      'edit-training': (id) => treinoModal(treinos.find((item) => String(item.idTreino) === id)),
+      'remove-training': async (id) => {
+        await api.removerTreino(id);
+        toast('Treino removido');
+        renderCurrent();
+      },
+      'edit-evaluation': (id) => avaliacaoModal(avaliacoes.find((item) => String(item.idAvaliacaoFisica) === id)),
+      'remove-evaluation': async (id) => {
+        await api.removerAvaliacao(id);
+        toast('Avaliacao removida');
+        renderCurrent();
+      }
+    });
   }
 }
 
-function treinoModal() {
+function treinoModal(treino = {}) {
   openModal('Treino', `
     <div class="form-grid">
       <label class="form-group">
         <span class="form-label">Aluno</span>
-        <select class="form-select" name="Aluno_idTreino" required>${options(state.cache.alunos, 'idAluno', 'nome')}</select>
+        <select class="form-select" name="Aluno_idTreino" required>${options(state.cache.alunos, 'idAluno', 'nome', treino.Aluno_idTreino)}</select>
       </label>
-      ${input('data', 'Data', '', true, 'date')}
-      ${input('descricao', 'Descricao', '', true)}
+      ${input('data', 'Data', dateInputFromApi(treino.data), true, 'date')}
+      ${input('descricao', 'Descricao', treino.descricao, true)}
     </div>
   `, async (form) => {
-    await api.criarTreino(Object.fromEntries(form.entries()));
+    const payload = Object.fromEntries(form.entries());
+    if (treino.idTreino) {
+      await api.atualizarTreino(treino.idTreino, payload);
+    } else {
+      await api.criarTreino(payload);
+    }
     toast('Treino salvo');
     renderCurrent();
   });
 }
 
-function avaliacaoModal() {
+function avaliacaoModal(avaliacao = {}) {
   openModal('Avaliacao fisica', `
     <div class="form-grid">
       <label class="form-group">
         <span class="form-label">Aluno</span>
-        <select class="form-select" name="Aluno_idAluno" required>${options(state.cache.alunos, 'idAluno', 'nome')}</select>
+        <select class="form-select" name="Aluno_idAluno" required>${options(state.cache.alunos, 'idAluno', 'nome', avaliacao.Aluno_idAluno)}</select>
       </label>
-      ${input('peso', 'Peso', '', true, 'number', '0.01')}
-      ${input('altura', 'Altura', '', true, 'number', '0.01')}
+      ${input('peso', 'Peso', avaliacao.peso, true, 'number', '0.01')}
+      ${input('altura', 'Altura', avaliacao.altura, true, 'number', '0.01')}
     </div>
   `, async (form) => {
-    await api.criarAvaliacao(Object.fromEntries(form.entries()));
+    const payload = Object.fromEntries(form.entries());
+    if (avaliacao.idAvaliacaoFisica) {
+      await api.atualizarAvaliacao(avaliacao.idAvaliacaoFisica, payload);
+    } else {
+      await api.criarAvaliacao(payload);
+    }
     toast('Avaliacao salva');
     renderCurrent();
   });
@@ -690,6 +726,11 @@ function dateInputValue(daysFromToday = 0) {
   const date = new Date();
   date.setDate(date.getDate() + daysFromToday);
   return date.toISOString().slice(0, 10);
+}
+
+function dateInputFromApi(value) {
+  if (!value) return '';
+  return new Date(value).toISOString().slice(0, 10);
 }
 
 function select(name, label, items, selected) {

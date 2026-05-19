@@ -53,8 +53,12 @@ export const api = {
   registrarEntrada: (aluno_id) => request('/acesso/entrada', { method: 'POST', body: JSON.stringify({ aluno_id }) }),
   treinos: () => request('/treinos/'),
   criarTreino: (payload) => request('/treinos/', { method: 'POST', body: JSON.stringify(payload) }),
+  atualizarTreino: (id, payload) => request(`/treinos/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  removerTreino: (id) => request(`/treinos/${id}`, { method: 'DELETE' }),
   avaliacoes: () => request('/treinos/avaliacoes'),
   criarAvaliacao: (payload) => request('/treinos/avaliacoes', { method: 'POST', body: JSON.stringify(payload) }),
+  atualizarAvaliacao: (id, payload) => request(`/treinos/avaliacoes/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  removerAvaliacao: (id) => request(`/treinos/avaliacoes/${id}`, { method: 'DELETE' }),
   relatorioFinanceiro: () => request('/relatorios/financeiro'),
   relatorioAcesso: () => request('/relatorios/acesso')
 };

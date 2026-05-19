@@ -45,6 +45,35 @@ def criar_treino():
     finally:
         conn.close()
 
+@treinos_bp.route('/<int:id>', methods=['PUT'])
+@roles_required('admin', 'treinador', 'professor')
+def atualizar_treino(id):
+    data = request.get_json()
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE treinos
+                SET descricao=%s, data=%s, Aluno_idTreino=%s
+                WHERE idTreino=%s
+            """, (data['descricao'], data['data'], data['Aluno_idTreino'], id))
+            conn.commit()
+            return jsonify({'msg': 'Treino atualizado'})
+    finally:
+        conn.close()
+
+@treinos_bp.route('/<int:id>', methods=['DELETE'])
+@roles_required('admin', 'treinador', 'professor')
+def remover_treino(id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM treinos WHERE idTreino=%s", (id,))
+            conn.commit()
+            return jsonify({'msg': 'Treino removido'})
+    finally:
+        conn.close()
+
 @treinos_bp.route('/avaliacoes', methods=['GET'])
 @jwt_required()
 def get_avaliacoes():
@@ -82,5 +111,34 @@ def criar_avaliacao():
             )
             conn.commit()
             return jsonify({'id': cur.lastrowid}), 201
+    finally:
+        conn.close()
+
+@treinos_bp.route('/avaliacoes/<int:id>', methods=['PUT'])
+@roles_required('admin', 'treinador', 'professor')
+def atualizar_avaliacao(id):
+    data = request.get_json()
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE avaliacoes_fisicas
+                SET peso=%s, altura=%s, Aluno_idAluno=%s
+                WHERE idAvaliacaoFisica=%s
+            """, (data['peso'], data['altura'], data['Aluno_idAluno'], id))
+            conn.commit()
+            return jsonify({'msg': 'Avaliacao atualizada'})
+    finally:
+        conn.close()
+
+@treinos_bp.route('/avaliacoes/<int:id>', methods=['DELETE'])
+@roles_required('admin', 'treinador', 'professor')
+def remover_avaliacao(id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM avaliacoes_fisicas WHERE idAvaliacaoFisica=%s", (id,))
+            conn.commit()
+            return jsonify({'msg': 'Avaliacao removida'})
     finally:
         conn.close()
