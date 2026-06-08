@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
+from pymysql.err import IntegrityError
 from ..utils.authz import current_user, is_admin, is_trainer, roles_required
 from ..controllers.alunos_controller import (
     listar_alunos, buscar_aluno, criar_aluno, atualizar_aluno, deletar_aluno
@@ -56,5 +57,12 @@ def put(id):
 @alunos_bp.route('/<int:id>', methods=['DELETE'])
 @roles_required('admin')
 def delete(id):
-    deletar_aluno(id)
-    return jsonify({'msg': 'Aluno removido'})
+    try:
+        deletar_aluno(id)
+        return jsonify({'msg': 'Aluno removido'})
+    except ValueError as error:
+        return jsonify({'erro': str(error)}), 404
+    except IntegrityError:
+        return jsonify({
+            'erro': 'Nao foi possivel remover este aluno porque ainda existem registros vinculados.'
+        }), 409

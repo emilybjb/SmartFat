@@ -2,8 +2,14 @@
 -- SmartFat - Script de Inicialização do Banco
 -- ============================================
 
-CREATE DATABASE IF NOT EXISTS smartfat;
+CREATE DATABASE IF NOT EXISTS smartfat
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
 USE smartfat;
+
+ALTER DATABASE smartfat
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
 
 -- Tabela de usuários do sistema (admin, treinador, aluno)
 CREATE TABLE IF NOT EXISTS usuarios (
@@ -13,7 +19,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     senha    VARCHAR(255) NOT NULL,
     perfil   ENUM('admin', 'treinador', 'professor', 'aluno', 'recepcionista') DEFAULT 'recepcionista',
     Aluno_idAluno INT NULL
-);
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Planos disponíveis na academia
 CREATE TABLE IF NOT EXISTS planos (
@@ -21,7 +27,7 @@ CREATE TABLE IF NOT EXISTS planos (
     nome     VARCHAR(100) NOT NULL,
     valor    DECIMAL(6,2) NOT NULL,
     duracao  INT DEFAULT 30
-);
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Alunos cadastrados
 CREATE TABLE IF NOT EXISTS alunos (
@@ -34,7 +40,7 @@ CREATE TABLE IF NOT EXISTS alunos (
     AvaliacaoFisica_idAvaliacaoFisica INT,
     Plano_idPlano INT,
     FOREIGN KEY (Plano_idPlano) REFERENCES planos(idPlano)
-);
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Relatório Operacional (referenciado por Acesso)
 CREATE TABLE IF NOT EXISTS relatorios_operacionais (
@@ -42,8 +48,8 @@ CREATE TABLE IF NOT EXISTS relatorios_operacionais (
     frequenciaMensal       INT,
     quantAulas             INT,
     Aluno_idAluno          INT,
-    FOREIGN KEY (Aluno_idAluno) REFERENCES alunos(idAluno)
-);
+    FOREIGN KEY (Aluno_idAluno) REFERENCES alunos(idAluno) ON DELETE CASCADE
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Controle de acesso à academia
 CREATE TABLE IF NOT EXISTS acessos (
@@ -57,8 +63,8 @@ CREATE TABLE IF NOT EXISTS acessos (
     Aluno_Treino_idTreino  INT,
     Aluno_AvaliacaoFisica_idAvaliacaoFisica INT,
     Aluno_Plano_idPlano    INT,
-    FOREIGN KEY (Aluno_idAluno) REFERENCES alunos(idAluno)
-);
+    FOREIGN KEY (Aluno_idAluno) REFERENCES alunos(idAluno) ON DELETE CASCADE
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Avaliações físicas dos alunos
 CREATE TABLE IF NOT EXISTS avaliacoes_fisicas (
@@ -66,8 +72,8 @@ CREATE TABLE IF NOT EXISTS avaliacoes_fisicas (
     peso              DOUBLE,
     altura            DOUBLE,
     Aluno_idAluno     INT,
-    FOREIGN KEY (Aluno_idAluno) REFERENCES alunos(idAluno)
-);
+    FOREIGN KEY (Aluno_idAluno) REFERENCES alunos(idAluno) ON DELETE CASCADE
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Treinos associados a alunos
 CREATE TABLE IF NOT EXISTS treinos (
@@ -75,15 +81,15 @@ CREATE TABLE IF NOT EXISTS treinos (
     descricao     VARCHAR(100),
     data          DATE,
     Aluno_idTreino INT,
-    FOREIGN KEY (Aluno_idTreino) REFERENCES alunos(idAluno)
-);
+    FOREIGN KEY (Aluno_idTreino) REFERENCES alunos(idAluno) ON DELETE CASCADE
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Relatório financeiro por período
 CREATE TABLE IF NOT EXISTS relatorios_financeiros (
     idRelatorioFinanceiro INT AUTO_INCREMENT PRIMARY KEY,
     periodo               INT,
     totalReceita          DECIMAL(10,2)
-);
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Módulo Financeiro (centro de custo)
 CREATE TABLE IF NOT EXISTS financeiros (
@@ -92,7 +98,7 @@ CREATE TABLE IF NOT EXISTS financeiros (
     dataPagamento DATE,
     RelatorioFinanceiro_idRelatorioFinanceiro INT,
     FOREIGN KEY (RelatorioFinanceiro_idRelatorioFinanceiro) REFERENCES relatorios_financeiros(idRelatorioFinanceiro)
-);
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Mensalidades dos alunos
 CREATE TABLE IF NOT EXISTS mensalidades (
@@ -102,9 +108,9 @@ CREATE TABLE IF NOT EXISTS mensalidades (
     status             VARCHAR(45) DEFAULT 'Pendente',
     Aluno_idAluno      INT NOT NULL,
     Financeiro_idFinanceiro INT,
-    FOREIGN KEY (Aluno_idAluno) REFERENCES alunos(idAluno),
+    FOREIGN KEY (Aluno_idAluno) REFERENCES alunos(idAluno) ON DELETE CASCADE,
     FOREIGN KEY (Financeiro_idFinanceiro) REFERENCES financeiros(idFinanceiro)
-);
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ============================================
 -- Dados iniciais (seed)

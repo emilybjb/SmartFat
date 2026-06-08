@@ -41,9 +41,19 @@ def post():
     try:
         with conn.cursor() as cur:
             cur.execute("""
+                SELECT p.valor
+                FROM alunos a
+                JOIN planos p ON a.Plano_idPlano = p.idPlano
+                WHERE a.idAluno = %s
+            """, (data['Aluno_idAluno'],))
+            plano = cur.fetchone()
+            if not plano:
+                return jsonify({'erro': 'Aluno ou plano informado nao existe.'}), 400
+
+            cur.execute("""
                 INSERT INTO mensalidades (valor, dataVencimento, status, Aluno_idAluno, Financeiro_idFinanceiro)
                 VALUES (%s, %s, %s, %s, %s)
-            """, (data['valor'], data['dataVencimento'], 'Pendente', data['Aluno_idAluno'], data.get('Financeiro_idFinanceiro')))
+            """, (plano['valor'], data['dataVencimento'], 'Pendente', data['Aluno_idAluno'], data.get('Financeiro_idFinanceiro')))
             conn.commit()
             return jsonify({'id': cur.lastrowid}), 201
     finally:

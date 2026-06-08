@@ -2,6 +2,8 @@ import { api } from './api.js';
 import { clearSession, setSession, state } from './state.js';
 import { date, dateTime, emptyState, money, openModal, options, qs, qsa, setActiveView, statusBadge, toast } from './ui.js';
 
+console.info('SmartFat frontend build 20260608-2');
+
 const view = qs('#view');
 
 const views = {
@@ -271,7 +273,7 @@ function alunoModal(aluno = {}) {
   openModal('Aluno', `
     <div class="form-grid">
       ${input('nome', 'Nome', aluno.nome, true)}
-      ${input('CPF', 'CPF', aluno.CPF, !aluno.idAluno)}
+      ${input('CPF', 'CPF', onlyDigits(aluno.CPF), true)}
       ${input('telefone', 'Telefone', aluno.telefone)}
       ${select('status', 'Status', [['Ativo', 'Ativo'], ['Inativo', 'Inativo']], aluno.status || 'Ativo')}
       <label class="form-group">
@@ -294,6 +296,7 @@ function alunoModal(aluno = {}) {
 async function renderCadastro() {
   state.cache.planos = await api.planos();
   const vencimentoPadrao = dateInputValue(30);
+  const mensalidadeValorPadrao = planValue(state.cache.planos[0]?.idPlano);
 
   view.innerHTML = `
     <div class="grid-2">
@@ -308,10 +311,10 @@ async function renderCadastro() {
             ${input('senha', 'Senha inicial', '', true, 'password')}
             <label class="form-group">
               <span class="form-label">Plano</span>
-              <select class="form-select" name="Plano_idPlano" required>${options(state.cache.planos, 'idPlano', 'nome')}</select>
+              <select class="form-select" name="Plano_idPlano" required>${planOptions()}</select>
             </label>
             ${select('status', 'Status', [['Ativo', 'Ativo'], ['Inativo', 'Inativo']], 'Ativo')}
-            ${input('mensalidade_valor', 'Valor da mensalidade', '', false, 'number', '0.01')}
+            ${input('mensalidade_valor', 'Valor da mensalidade', mensalidadeValorPadrao, false, 'number', '0.01', 'disabled aria-readonly="true"')}
             ${input('dataVencimento', 'Vencimento inicial', vencimentoPadrao, true, 'date')}
           </div>
           <div class="form-actions">
@@ -348,6 +351,15 @@ async function renderCadastro() {
       toast(error.message, 'error');
     }
   });
+
+  const studentForm = qs('#student-register-form');
+  const planoSelect = qs('[name="Plano_idPlano"]', studentForm);
+  const mensalidadeInput = qs('[name="mensalidade_valor"]', studentForm);
+  const updateMensalidadeValue = () => {
+    mensalidadeInput.value = planoSelect.selectedOptions[0]?.dataset.valor || '';
+  };
+  planoSelect.addEventListener('change', updateMensalidadeValue);
+  updateMensalidadeValue();
 
   qs('#teacher-register-form').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -435,9 +447,9 @@ function mensalidadeModal() {
     <div class="form-grid">
       <label class="form-group">
         <span class="form-label">Aluno</span>
-        <select class="form-select" name="Aluno_idAluno" required>${options(state.cache.alunos, 'idAluno', 'nome')}</select>
+        <select class="form-select" name="Aluno_idAluno" required>${studentOptions()}</select>
       </label>
-      ${input('valor', 'Valor', '', true, 'number', '0.01')}
+      ${input('valor', 'Valor', studentPlanValue(state.cache.alunos[0]?.idAluno), false, 'number', '0.01', 'disabled aria-readonly="true"')}
       ${input('dataVencimento', 'Vencimento', '', true, 'date')}
     </div>
   `, async (form) => {
@@ -445,6 +457,15 @@ function mensalidadeModal() {
     toast('Mensalidade criada');
     renderCurrent();
   });
+
+  const modal = qs('#modal-root');
+  const alunoSelect = qs('[name="Aluno_idAluno"]', modal);
+  const valorInput = qs('[name="valor"]', modal);
+  const updateMensalidadeValue = () => {
+    valorInput.value = alunoSelect.selectedOptions[0]?.dataset.valor || '';
+  };
+  alunoSelect.addEventListener('change', updateMensalidadeValue);
+  updateMensalidadeValue();
 }
 
 async function renderAcesso() {
@@ -733,7 +754,7 @@ function bindActions(handlers) {
   });
 }
 
-function input(name, label, value = '', required = false, type = 'text', step = '') {
+function input(name, label, value = '', required = false, type = 'text', step = '', attrs = '') {
   const numericAttrs = {
     CPF: 'maxlength="11" minlength="11" inputmode="numeric" pattern="\\d{11}"',
     telefone: 'maxlength="11" inputmode="numeric" pattern="\\d{0,11}"'
@@ -742,9 +763,38 @@ function input(name, label, value = '', required = false, type = 'text', step = 
   return `
     <label class="form-group">
       <span class="form-label">${label}</span>
-      <input class="form-input" name="${name}" type="${type}" value="${value || ''}" ${required ? 'required' : ''} ${step ? `step="${step}"` : ''} ${extraAttrs}>
+      <input class="form-input" name="${name}" type="${type}" value="${value || ''}" ${required ? 'required' : ''} ${step ? `step="${step}"` : ''} ${extraAttrs} ${attrs}>
     </label>
   `;
+}
+
+function planValue(planId) {
+  const plan = state.cache.planos.find((item) => String(item.idPlano) === String(planId));
+  return plan?.valor ?? '';
+}
+
+function studentPlanValue(studentId) {
+  const student = state.cache.alunos.find((item) => String(item.idAluno) === String(studentId));
+  return student?.plano_valor ?? planValue(student?.Plano_idPlano);
+}
+
+function planOptions(selected) {
+  return state.cache.planos.map((plan) => {
+    const id = plan.idPlano;
+    return `<option value="${id}" data-valor="${plan.valor ?? ''}" ${String(id) === String(selected || '') ? 'selected' : ''}>${plan.nome}</option>`;
+  }).join('');
+}
+
+function studentOptions(selected) {
+  return state.cache.alunos.map((student) => {
+    const id = student.idAluno;
+    const value = student.plano_valor ?? planValue(student.Plano_idPlano);
+    return `<option value="${id}" data-valor="${value ?? ''}" ${String(id) === String(selected || '') ? 'selected' : ''}>${student.nome}</option>`;
+  }).join('');
+}
+
+function onlyDigits(value) {
+  return String(value || '').replace(/\D/g, '');
 }
 
 function dateInputValue(daysFromToday = 0) {

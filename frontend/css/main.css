@@ -394,6 +394,13 @@ tr:hover td { background: rgba(255,255,255,.02); }
   border-color: var(--accent);
 }
 
+.form-input[readonly], .form-input:disabled {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  cursor: default;
+  opacity: 1;
+}
+
 .form-select option { background: var(--bg3); }
 
 /* ---- Modal ---- */

@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
 from ..utils.db import get_connection
 from ..utils.authz import roles_required
+from ..controllers.alunos_controller import ensure_unique_cpf, only_digits
 import bcrypt
 
 auth_bp = Blueprint('auth', __name__)
@@ -76,10 +77,6 @@ def hash_senha(senha):
     return bcrypt.hashpw(senha.encode(), bcrypt.gensalt(rounds=12)).decode()
 
 
-def only_digits(value):
-    return ''.join(char for char in str(value or '') if char.isdigit())
-
-
 @auth_bp.route('/cadastro', methods=['POST'])
 @roles_required('admin')
 def cadastrar_usuario():
@@ -131,9 +128,10 @@ def cadastrar_usuario():
             if telefone and len(telefone) > 11:
                 return jsonify({'erro': 'Telefone deve conter no maximo 11 digitos.'}), 400
 
-            cur.execute("SELECT idAluno FROM alunos WHERE CPF = %s", (cpf,))
-            if cur.fetchone():
-                return jsonify({'erro': 'Ja existe um aluno com este CPF.'}), 409
+            try:
+                ensure_unique_cpf(cur, cpf)
+            except ValueError as error:
+                return jsonify({'erro': str(error)}), 409
 
             cur.execute("SELECT valor FROM planos WHERE idPlano = %s", (plano_id,))
             plano = cur.fetchone()
@@ -157,15 +155,11 @@ def cadastrar_usuario():
                 VALUES (%s, %s, %s, 'aluno', %s)
             """, (nome, email, senha_hash, aluno_id))
 
-            valor = data.get('mensalidade_valor')
-            if not valor:
-                valor = plano['valor']
-
             cur.execute("""
                 INSERT INTO mensalidades (valor, dataVencimento, status, Aluno_idAluno, Financeiro_idFinanceiro)
                 VALUES (%s, %s, 'Pendente', %s, %s)
             """, (
-                valor,
+                plano['valor'],
                 vencimento,
                 aluno_id,
                 data.get('Financeiro_idFinanceiro')
